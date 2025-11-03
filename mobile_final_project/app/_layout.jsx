@@ -115,9 +115,16 @@ function AppContent() {
           alignItems: 'center',
           paddingTop: 50 // Account for status bar
         }}>
+          
+          <View>
+          <Text style={{ fontSize: 12, fontWeight: '400' }}>
+            Pet Spot App
+          </Text>
           <Text style={{ fontSize: 16, fontWeight: '600' }}>
             Welcome, {user?.name || 'User'}!
           </Text>
+          </View>
+
           <TouchableOpacity
             onPress={handleLogout}
             style={{
