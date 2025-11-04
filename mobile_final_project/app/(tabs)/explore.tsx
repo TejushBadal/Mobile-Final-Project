@@ -1,112 +1,292 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
+import { StyleSheet, ScrollView, TouchableOpacity, View, Text, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { FAB, Chip, IconButton } from 'react-native-paper';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+import AppHeader from '@/components/AppHeader';
 
-export default function TabTwoScreen() {
+const USER_POSTS = [
+  {
+    id: 'user-1',
+    name: 'Bella',
+    species: 'Dog',
+    breed: 'Labrador',
+    color: 'Golden',
+    lastSeen: '2025-11-02T18:30:00',
+    location: 'Scarborough, Toronto',
+    coordinates: { latitude: 43.7731, longitude: -79.2578 },
+    description: 'Friendly golden lab, very social with people and other dogs.',
+    contact: {
+      name: 'Jason M',
+      email: 'jayjay123@gmail.com',
+      phone: '+1 (555) 123-4567'
+    },
+    imageUri: '@/assets/demo_images/ASSET_1.jpg'
+  }
+];
+
+export default function MyPostsScreen() {
+  const router = useRouter();
+  const [userPosts, setUserPosts] = useState(USER_POSTS);
+
+  const handlePetPress = (pet) => {
+    router.push({
+      pathname: '/pet-detail',
+      params: { petData: JSON.stringify(pet) }
+    });
+  };
+
+  const handleAddPost = () => {
+    router.push('/add-pet-report');
+  };
+
+  const handleFoundPet = () => {
+    router.push('/add-found-pet-report');
+  };
+
+  const handleEditPost = (pet) => {
+    Alert.alert('Edit Post', `Edit ${pet.name}'s listing`);
+  };
+
+  const handleDeletePost = (petId) => {
+    Alert.alert(
+      'Delete Post',
+      'Are you sure you want to delete this post?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setUserPosts(posts => posts.filter(post => post.id !== petId));
+          }
+        }
+      ]
+    );
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
+    <View style={styles.container}>
+      <AppHeader pageTitle="My Posts" showLogout={true} />
+
+      <ScrollView style={styles.scrollView}>
+        <ThemedView style={styles.content}>
+          <ThemedText type="subtitle" style={styles.sectionTitle}>
+            My Lost Pet Reports
+          </ThemedText>
+
+          {userPosts.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>🐾</Text>
+              <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+                No posts yet
+              </ThemedText>
+              <ThemedText style={styles.emptySubtitle}>
+                Tap the + button to report a lost pet
+              </ThemedText>
+            </View>
+          ) : (
+            userPosts.map((pet) => {
+              const lastSeenDate = new Date(pet.lastSeen);
+              const formattedDate = lastSeenDate.toLocaleDateString();
+              const formattedTime = lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+              return (
+                <TouchableOpacity
+                  key={pet.id}
+                  style={styles.petCard}
+                  onPress={() => handlePetPress(pet)}
+                >
+                  <Image
+                    source={require('@/assets/demo_images/ASSET_1.jpg')}
+                    style={styles.petImage}
+                  />
+                  <View style={styles.petInfo}>
+                    <View style={styles.petHeader}>
+                      <ThemedText type="defaultSemiBold" style={styles.petName}>
+                        {pet.name}
+                      </ThemedText>
+                      <Chip
+                        mode="outlined"
+                        style={[styles.speciesChip, pet.species === 'Dog' ? styles.dogChip : styles.catChip]}
+                        textStyle={styles.chipText}
+                      >
+                        {pet.species === 'Dog' ? '🐕 Dog' : '🐱 Cat'}
+                      </Chip>
+                    </View>
+                    <ThemedText style={styles.petBreed}>
+                      {pet.breed} • {pet.color}
+                    </ThemedText>
+                    <ThemedText style={styles.petLocation}>
+                      📍 {pet.location}
+                    </ThemedText>
+                    <ThemedText style={styles.petDate}>
+                      Last seen: {formattedDate} at {formattedTime}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.actionButtons}>
+                    <IconButton
+                      icon="pencil"
+                      size={20}
+                      onPress={() => handleEditPost(pet)}
+                      style={styles.editButton}
+                    />
+                    <IconButton
+                      icon="delete"
+                      size={20}
+                      onPress={() => handleDeletePost(pet.id)}
+                      style={styles.deleteButton}
+                    />
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
+        </ThemedView>
+      </ScrollView>
+
+      <View style={styles.fabContainer}>
+        <FAB
+          icon="plus"
+          style={styles.fabPrimary}
+          onPress={handleAddPost}
+          label="Report Lost Pet"
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
+        <FAB
+          icon="paw"
+          style={styles.fabSecondary}
+          onPress={handleFoundPet}
+          label="Report Pet Found"
         />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
   },
-  titleContainer: {
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 15,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyEmoji: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    opacity: 0.7,
+    textAlign: 'center',
+  },
+  petCard: {
     flexDirection: 'row',
-    gap: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  petImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 15,
+  },
+  petInfo: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  petHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  petName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    flex: 1,
+  },
+  petBreed: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  petLocation: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
+  },
+  petDate: {
+    fontSize: 12,
+    color: '#888',
+  },
+  speciesChip: {
+    marginLeft: 8,
+    height: 32,
+  },
+  dogChip: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#2196f3',
+  },
+  catChip: {
+    backgroundColor: '#fce4ec',
+    borderColor: '#e91e63',
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  actionButtons: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingLeft: 10,
+  },
+  editButton: {
+    backgroundColor: '#e3f2fd',
+    marginBottom: 8,
+  },
+  deleteButton: {
+    backgroundColor: '#ffebee',
+  },
+  fabContainer: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    flexDirection: 'column',
+    gap: 12,
+  },
+  fabPrimary: {
+    backgroundColor: '#579ee6',
+  },
+  fabSecondary: {
+    backgroundColor: '#4CAF50',
   },
 });

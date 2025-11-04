@@ -126,12 +126,13 @@ const MapComponent = ({
     try {
       return (
         <GoogleMaps.View
-          {...commonProps}
-          properties={{
-            ...commonProps.properties,
-            mapType: 'NORMAL'
-          }}
-          colorScheme="FOLLOW_SYSTEM"
+          // {...commonProps}
+          // properties={{
+          //   ...commonProps.properties,
+          //   mapType: 'NORMAL'
+          // }}
+          // colorScheme="FOLLOW_SYSTEM"
+          style={{ flex: 1, minHeight: 300 }}
         />
       );
     } catch (error) {
