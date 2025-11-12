@@ -138,7 +138,7 @@ export default function HomeScreen() {
   };
 
   const handleFoundPetPress = () => {
-    console.log('Report found pet pressed');
+    router.push('/add-pet-report');
   };
 
   return (
