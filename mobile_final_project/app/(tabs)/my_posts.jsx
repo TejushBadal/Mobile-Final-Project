@@ -1,35 +1,42 @@
 import { Image } from 'expo-image';
 import { StyleSheet, ScrollView, TouchableOpacity, View, Text, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useEffect, useCallback } from 'react';
 import { FAB, Chip, IconButton } from 'react-native-paper';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import AppHeader from '@/components/AppHeader';
-
-const USER_POSTS = [
-  {
-    id: 'user-1',
-    name: 'Bella',
-    species: 'Dog',
-    breed: 'Labrador',
-    color: 'Golden',
-    lastSeen: '2025-11-02T18:30:00',
-    location: 'Scarborough, Toronto',
-    coordinates: { latitude: 43.7731, longitude: -79.2578 },
-    description: 'Friendly golden lab, very social with people and other dogs.',
-    contact: {
-      name: 'Jason M',
-      email: 'jayjay123@gmail.com',
-      phone: '+1 (555) 123-4567'
-    },
-    imageUri: '@/assets/demo_images/ASSET_1.jpg'
-  }
-];
+import { getPetsByUser, deletePet, initDatabase } from '@/services/database';
 
 export default function MyPostsScreen() {
   const router = useRouter();
-  const [userPosts, setUserPosts] = useState(USER_POSTS);
+  const [userPosts, setUserPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load user's posts from database
+  const loadUserPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      await initDatabase();
+      const pets = await getPetsByUser();
+      setUserPosts(pets);
+    } catch (error) {
+      console.error('Error loading user posts:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUserPosts();
+  }, [loadUserPosts]);
+
+  // Refresh posts when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadUserPosts();
+    }, [loadUserPosts])
+  );
 
   const handlePetPress = (pet) => {
     router.push({
@@ -59,8 +66,14 @@ export default function MyPostsScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            setUserPosts(posts => posts.filter(post => post.id !== petId));
+          onPress: async () => {
+            try {
+              await deletePet(petId);
+              setUserPosts(posts => posts.filter(post => post.id !== petId));
+            } catch (error) {
+              console.error('Error deleting pet:', error);
+              Alert.alert('Error', 'Failed to delete post. Please try again.');
+            }
           }
         }
       ]
@@ -74,10 +87,17 @@ export default function MyPostsScreen() {
       <ScrollView style={styles.scrollView}>
         <ThemedView style={styles.content}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>
-            My Lost Pet Reports
+            My Pet Reports
           </ThemedText>
 
-          {userPosts.length === 0 ? (
+          {loading ? (
+            <View style={styles.loadingState}>
+              <Text style={styles.emptyEmoji}>⏳</Text>
+              <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
+                Loading your posts...
+              </ThemedText>
+            </View>
+          ) : userPosts.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>🐾</Text>
               <ThemedText type="defaultSemiBold" style={styles.emptyTitle}>
@@ -108,13 +128,22 @@ export default function MyPostsScreen() {
                       <ThemedText type="defaultSemiBold" style={styles.petName}>
                         {pet.name}
                       </ThemedText>
-                      <Chip
-                        mode="outlined"
-                        style={[styles.speciesChip, pet.species === 'Dog' ? styles.dogChip : styles.catChip]}
-                        textStyle={styles.chipText}
-                      >
-                        {pet.species === 'Dog' ? '🐕 Dog' : '🐱 Cat'}
-                      </Chip>
+                      <View style={styles.chipContainer}>
+                        <Chip
+                          mode="outlined"
+                          style={[styles.typeChip, pet.type === 'Lost' ? styles.lostChip : styles.foundChip]}
+                          textStyle={styles.chipText}
+                        >
+                          {pet.type === 'Lost' ? '🔍 Lost' : '🏠 Found'}
+                        </Chip>
+                        <Chip
+                          mode="outlined"
+                          style={[styles.speciesChip, pet.species === 'Dog' ? styles.dogChip : styles.catChip]}
+                          textStyle={styles.chipText}
+                        >
+                          {pet.species === 'Dog' ? '🐕' : '🐱'}
+                        </Chip>
+                      </View>
                     </View>
                     <ThemedText style={styles.petBreed}>
                       {pet.breed} • {pet.color}
@@ -229,6 +258,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  chipContainer: {
+    flexDirection: 'row',
+    gap: 4,
+  },
   petName: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -248,9 +281,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
   },
+  typeChip: {
+    height: 28,
+  },
+  lostChip: {
+    backgroundColor: '#ffebee',
+    borderColor: '#f44336',
+  },
+  foundChip: {
+    backgroundColor: '#e8f5e8',
+    borderColor: '#4caf50',
+  },
   speciesChip: {
-    marginLeft: 8,
-    height: 32,
+    height: 28,
   },
   dogChip: {
     backgroundColor: '#e3f2fd',
@@ -288,5 +331,10 @@ const styles = StyleSheet.create({
   },
   fabSecondary: {
     backgroundColor: '#4CAF50',
+  },
+  loadingState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
   },
 });

@@ -6,104 +6,32 @@ import { Searchbar, Chip } from 'react-native-paper';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import AppHeader from '@/components/AppHeader';
-
-const DEMO_PETS = [
-  {
-    id: '1',
-    name: 'Buddy',
-    type: 'Lost',
-    species: 'Dog',
-    breed: 'Pomeranian',
-    color: 'Orange and White',
-    lastSeen: '2025-11-01T14:30:00',
-    location: 'High Park, Toronto',
-    coordinates: { latitude: 43.6465, longitude: -79.4637 },
-    description: 'Very friendly small dog, answers to Buddy. Has a small scar on left ear.',
-    contact: {
-      name: 'John Doe',
-      email: 'john.doe@email.com',
-      phone: '(416) 555-0123'
-    },
-    imageUri: '@/assets/demo_images/ASSET_1.jpg'
-  },
-  {
-    id: '2',
-    name: 'Whiskers',
-    type: 'Found',
-    species: 'Cat',
-    breed: 'Maine Coon',
-    color: 'Gray and White',
-    lastSeen: '2025-10-30T09:15:00',
-    location: 'Distillery District, Toronto',
-    coordinates: { latitude: 43.6503, longitude: -79.3592 },
-    description: 'Large fluffy cat with distinctive white chest marking. Found wandering, very friendly.',
-    contact: {
-      name: 'Jane Smith',
-      email: 'jane.smith@email.com',
-      phone: '(416) 555-0456'
-    },
-    imageUri: '@/assets/demo_images/ASSET_1.jpg'
-  },
-  {
-    id: '3',
-    name: 'Charlie',
-    type: 'Lost',
-    species: 'Dog',
-    breed: 'Golden Retriever',
-    color: 'Golden',
-    lastSeen: '2025-11-02T16:45:00',
-    location: 'Queen\'s Park, Toronto',
-    coordinates: { latitude: 43.6596, longitude: -79.3925 },
-    description: 'Medium-sized golden retriever, very energetic and friendly.',
-    contact: {
-      name: 'Mike Johnson',
-      email: 'mike.johnson@email.com',
-      phone: '(647) 555-0789'
-    },
-    imageUri: '@/assets/demo_images/ASSET_1.jpg'
-  },
-  {
-    id: '4',
-    name: 'Luna',
-    type: 'Found',
-    species: 'Cat',
-    breed: 'Siamese',
-    color: 'Cream and Brown',
-    lastSeen: '2025-10-29T20:00:00',
-    location: 'Kensington Market, Toronto',
-    coordinates: { latitude: 43.6542, longitude: -79.4006 },
-    description: 'Siamese cat with blue eyes, wearing a red collar. Found in good condition.',
-    contact: {
-      name: 'Sarah Wilson',
-      email: 'sarah.wilson@email.com',
-      phone: '(416) 555-0321'
-    },
-    imageUri: '@/assets/demo_images/ASSET_1.jpg'
-  },
-  {
-    id: '5',
-    name: 'Max',
-    type: 'Lost',
-    species: 'Dog',
-    breed: 'German Shepherd',
-    color: 'Black and Tan',
-    lastSeen: '2025-11-01T11:20:00',
-    location: 'Harbourfront, Toronto',
-    coordinates: { latitude: 43.6426, longitude: -79.3780 },
-    description: 'Large German Shepherd, well-trained but may be scared.',
-    contact: {
-      name: 'Robert Brown',
-      email: 'robert.brown@email.com',
-      phone: '(905) 555-0654'
-    },
-    imageUri: '@/assets/demo_images/ASSET_1.jpg'
-  }
-];
+import { getAllPets, initDatabase } from '@/services/database';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [allPets, setAllPets] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Initialize database and load pets
+  useEffect(() => {
+    const loadPets = async () => {
+      try {
+        setLoading(true);
+        await initDatabase();
+        const pets = await getAllPets();
+        setAllPets(pets);
+      } catch (error) {
+        console.error('Error loading pets:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPets();
+  }, []);
 
   // Debounce search query
   useEffect(() => {
@@ -117,18 +45,18 @@ export default function HomeScreen() {
   // Filter pets based on search query
   const filteredPets = useMemo(() => {
     if (!debouncedSearchQuery.trim()) {
-      return DEMO_PETS;
+      return allPets;
     }
 
     const query = debouncedSearchQuery.toLowerCase();
-    return DEMO_PETS.filter(pet =>
+    return allPets.filter(pet =>
       pet.name.toLowerCase().includes(query) ||
       pet.species.toLowerCase().includes(query) ||
       pet.breed.toLowerCase().includes(query) ||
       pet.location.toLowerCase().includes(query) ||
       pet.type.toLowerCase().includes(query)
     );
-  }, [debouncedSearchQuery]);
+  }, [debouncedSearchQuery, allPets]);
 
   const handlePetPress = (pet) => {
     router.push({
@@ -176,7 +104,16 @@ export default function HomeScreen() {
           Recent Pet Reports
         </ThemedText>
 
-        {filteredPets.map((pet) => {
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ThemedText>Loading pets...</ThemedText>
+          </View>
+        ) : filteredPets.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <ThemedText>No pets found</ThemedText>
+          </View>
+        ) : (
+          filteredPets.map((pet) => {
           const lastSeenDate = new Date(pet.lastSeen);
           const formattedDate = lastSeenDate.toLocaleDateString();
           const formattedTime = lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -228,7 +165,8 @@ export default function HomeScreen() {
               </View>
             </TouchableOpacity>
           );
-        })}
+          })
+        )}
         </ThemedView>
       </ScrollView>
     </View>
@@ -417,5 +355,15 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
   },
 });

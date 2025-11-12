@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, View, Alert } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { addPet } from '@/services/database';
 import {
   TextInput,
   Button,
@@ -82,8 +83,31 @@ export default function AddPetReportScreen() {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const petData = {
+        name: formData.name.trim() || 'Unknown',
+        type: 'Lost',
+        species: formData.species,
+        breed: formData.breed,
+        color: formData.color,
+        lastSeen: new Date().toISOString(),
+        location: formData.location,
+        coordinates: {
+          latitude: 43.6532,
+          longitude: -79.3832
+        },
+        description: formData.description,
+        contact: {
+          name: formData.contactName,
+          email: formData.contactEmail,
+          phone: formData.contactPhone
+        },
+        imageUri: null,
+        userId: 'current_user'
+      };
+
+      await addPet(petData);
+
       setIsSubmitting(false);
       Alert.alert(
         'Success!',
@@ -91,11 +115,20 @@ export default function AddPetReportScreen() {
         [
           {
             text: 'OK',
-            onPress: () => router.back()
+            onPress: () => router.push('/my_posts')
           }
         ]
       );
-    }, 1500);
+
+    } catch (error) {
+      console.error('Form submission error:', error);
+      setIsSubmitting(false);
+      Alert.alert(
+        'Error',
+        'Failed to submit your pet report. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const updateFormData = (field, value) => {

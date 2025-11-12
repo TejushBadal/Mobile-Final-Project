@@ -1,6 +1,7 @@
 import { ScrollView, StyleSheet, View, Alert } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { addPet } from '@/services/database';
 import {
   TextInput,
   Button,
@@ -93,8 +94,31 @@ export default function AddFoundPetReportScreen() {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const petData = {
+        name: 'Found Pet',
+        type: 'Found',
+        species: formData.species,
+        breed: formData.breed,
+        color: formData.color,
+        lastSeen: new Date().toISOString(),
+        location: formData.foundLocation,
+        coordinates: {
+          latitude: 43.6532,
+          longitude: -79.3832
+        },
+        description: `Found on: ${formData.foundDate}, Size: ${formData.size}, Condition: ${formData.condition}, Temporary care: ${formData.tempCare}. ${formData.description}`,
+        contact: {
+          name: formData.contactName,
+          email: formData.contactEmail,
+          phone: formData.contactPhone
+        },
+        imageUri: null,
+        userId: 'current_user'
+      };
+
+      await addPet(petData);
+
       setIsSubmitting(false);
       Alert.alert(
         'Success!',
@@ -102,11 +126,19 @@ export default function AddFoundPetReportScreen() {
         [
           {
             text: 'OK',
-            onPress: () => router.back()
+            onPress: () => router.push('/my_posts')
           }
         ]
       );
-    }, 1500);
+    } catch (error) {
+      console.error('Form submission error:', error);
+      setIsSubmitting(false);
+      Alert.alert(
+        'Error',
+        'Failed to submit your found pet report. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const updateFormData = (field, value) => {
