@@ -57,7 +57,11 @@ export default function PetDetailScreen() {
           {/* Pet Image */}
           <View style={styles.imageContainer}>
             <Image
-              source={require('@/assets/demo_images/ASSET_1.jpg')}
+              source={
+                pet.imageUri && pet.imageUri.startsWith('file://')
+                  ? { uri: pet.imageUri }
+                  : require('@/assets/demo_images/ASSET_1.jpg')
+              }
               style={styles.petImage}
             />
           </View>

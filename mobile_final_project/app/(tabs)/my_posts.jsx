@@ -54,7 +54,15 @@ export default function MyPostsScreen() {
   };
 
   const handleEditPost = (pet) => {
-    Alert.alert('Edit Post', `Edit ${pet.name}'s listing`);
+    // Navigate to the appropriate edit form based on pet type
+    const editRoute = pet.type === 'Lost' ? '/add-pet-report' : '/add-found-pet-report';
+    router.push({
+      pathname: editRoute,
+      params: {
+        editMode: 'true',
+        petData: JSON.stringify(pet)
+      }
+    });
   };
 
   const handleDeletePost = (petId) => {
@@ -119,32 +127,36 @@ export default function MyPostsScreen() {
                   style={styles.petCard}
                   onPress={() => handlePetPress(pet)}
                 >
-                  <Image
-                    source={require('@/assets/demo_images/ASSET_1.jpg')}
-                    style={styles.petImage}
-                  />
-                  <View style={styles.petInfo}>
-                    <View style={styles.petHeader}>
+                  <View style={styles.petContent}>
+                    <Image
+                      source={
+                        pet.imageUri && pet.imageUri.startsWith('file://')
+                          ? { uri: pet.imageUri }
+                          : require('@/assets/demo_images/ASSET_1.jpg')
+                      }
+                      style={styles.petImage}
+                    />
+                    <View style={styles.petInfo}>
                       <ThemedText type="defaultSemiBold" style={styles.petName}>
                         {pet.name}
                       </ThemedText>
+
                       <View style={styles.chipContainer}>
                         <Chip
                           mode="outlined"
-                          style={[styles.typeChip, pet.type === 'Lost' ? styles.lostChip : styles.foundChip]}
+                          style={[pet.type === 'Lost' ? styles.lostChip : styles.foundChip]}
                           textStyle={styles.chipText}
                         >
-                          {pet.type === 'Lost' ? '🔍 Lost' : '🏠 Found'}
+                          {pet.type === 'Lost' ? 'I Lost This Pet' : 'I Found This Pet'}
                         </Chip>
                         <Chip
                           mode="outlined"
-                          style={[styles.speciesChip, pet.species === 'Dog' ? styles.dogChip : styles.catChip]}
+                          style={[ pet.species === 'Dog' ? styles.dogChip : styles.catChip]}
                           textStyle={styles.chipText}
                         >
-                          {pet.species === 'Dog' ? '🐕' : '🐱'}
+                          {pet.species === 'Dog' ? '🐕 Dog' : '🐱 Cat'}
                         </Chip>
                       </View>
-                    </View>
                     <ThemedText style={styles.petBreed}>
                       {pet.breed} • {pet.color}
                     </ThemedText>
@@ -154,20 +166,23 @@ export default function MyPostsScreen() {
                     <ThemedText style={styles.petDate}>
                       Last seen: {formattedDate} at {formattedTime}
                     </ThemedText>
+                    </View>
                   </View>
-                  <View style={styles.actionButtons}>
-                    <IconButton
-                      icon="pencil"
-                      size={20}
-                      onPress={() => handleEditPost(pet)}
+
+                  {/* Bottom Action Buttons */}
+                  <View style={styles.bottomActions}>
+                    <TouchableOpacity
                       style={styles.editButton}
-                    />
-                    <IconButton
-                      icon="delete"
-                      size={20}
-                      onPress={() => handleDeletePost(pet.id)}
+                      onPress={() => handleEditPost(pet)}
+                    >
+                      <ThemedText style={styles.actionButtonText}>✏️ Edit</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
                       style={styles.deleteButton}
-                    />
+                      onPress={() => handleDeletePost(pet.id)}
+                    >
+                      <ThemedText style={styles.actionButtonText}>🗑️ Delete</ThemedText>
+                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
               );
@@ -228,7 +243,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   petCard: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
     padding: 15,
@@ -243,46 +258,45 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   petImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
+    width: 90,
+    height: 90,
+    borderRadius: 12,
     marginRight: 15,
   },
   petInfo: {
     flex: 1,
-    justifyContent: 'space-between',
-  },
-  petHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  chipContainer: {
-    flexDirection: 'row',
-    gap: 4,
+    justifyContent: 'flex-start',
   },
   petName: {
     fontSize: 18,
     fontWeight: 'bold',
-    flex: 1,
+    marginBottom: 6,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+    flexWrap: 'wrap',
   },
   petBreed: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 6,
+    fontWeight: '500',
   },
   petLocation: {
     fontSize: 14,
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 6,
+    fontWeight: '500',
   },
   petDate: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#888',
+    fontStyle: 'italic',
   },
   typeChip: {
-    height: 28,
+    height: 30,
   },
   lostChip: {
     backgroundColor: '#ffebee',
@@ -292,32 +306,45 @@ const styles = StyleSheet.create({
     backgroundColor: '#e8f5e8',
     borderColor: '#4caf50',
   },
-  speciesChip: {
-    height: 28,
-  },
-  dogChip: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#2196f3',
-  },
-  catChip: {
-    backgroundColor: '#fce4ec',
-    borderColor: '#e91e63',
-  },
   chipText: {
     fontSize: 13,
     fontWeight: '600',
   },
-  actionButtons: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingLeft: 10,
+  petContent: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  bottomActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    gap: 10,
   },
   editButton: {
     backgroundColor: '#e3f2fd',
-    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2196f3',
   },
   deleteButton: {
     backgroundColor: '#ffebee',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f44336',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   fabContainer: {
     position: 'absolute',

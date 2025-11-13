@@ -51,6 +51,19 @@
         {
           "androidGoogleMapsApiKey": "AIzaSyAqEw64IFB_7MuLTzB906afz0tYVFCc0nA"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ],
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true,
+          "supportsPictureInPicture": true
+        }
       ]
     ],
     "experiments": {

@@ -1,7 +1,8 @@
-import { ScrollView, StyleSheet, View, Alert } from 'react-native';
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
-import { addPet } from '@/services/database';
+import { ScrollView, StyleSheet, View, Alert, Image, TouchableOpacity } from 'react-native';
+import { useState, useEffect } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { addPet, updatePet } from '@/services/database';
 import {
   TextInput,
   Button,
@@ -17,6 +18,9 @@ import AppHeader from '@/components/AppHeader';
 
 export default function AddFoundPetReportScreen() {
   const router = useRouter();
+  const { editMode, petData } = useLocalSearchParams();
+  const isEditMode = editMode === 'true';
+  const editPetData = petData ? JSON.parse(petData) : null;
   const [formData, setFormData] = useState({
     species: 'Dog',
     breed: '',
@@ -32,6 +36,36 @@ export default function AddFoundPetReportScreen() {
     tempCare: 'Yes'
   });
 
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  // Populate form data in edit mode
+  useEffect(() => {
+    if (isEditMode && editPetData) {
+      // Parse description to extract additional fields for found pets
+      const descriptionParts = editPetData.description || '';
+      const sizeMatch = descriptionParts.match(/Size: (\w+)/);
+      const conditionMatch = descriptionParts.match(/Condition: (\w+)/);
+      const tempCareMatch = descriptionParts.match(/Temporary care: (\w+)/);
+      const foundDateMatch = descriptionParts.match(/Found on: ([^,]+)/);
+
+      setFormData({
+        species: editPetData.species || 'Dog',
+        breed: editPetData.breed || '',
+        color: editPetData.color || '',
+        size: sizeMatch ? sizeMatch[1] : 'Medium',
+        foundLocation: editPetData.location || '',
+        foundDate: foundDateMatch ? foundDateMatch[1].trim() : '',
+        condition: conditionMatch ? conditionMatch[1] : 'Good',
+        description: descriptionParts.replace(/Found on: [^,]+, Size: \w+, Condition: \w+, Temporary care: \w+\. /, '') || '',
+        contactName: editPetData.contact?.name || '',
+        contactEmail: editPetData.contact?.email || '',
+        contactPhone: editPetData.contact?.phone || '',
+        tempCare: tempCareMatch ? tempCareMatch[1] : 'Yes'
+      });
+      setSelectedImage(editPetData.imageUri);
+    }
+  }, [isEditMode, editPetData]);
+
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -45,6 +79,58 @@ export default function AddFoundPetReportScreen() {
     { value: 'Medium', label: 'Medium' },
     { value: 'Large', label: 'Large' }
   ];
+
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert('Permission Required', 'You need to allow camera roll permissions to add photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setSelectedImage(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert('Permission Required', 'You need to allow camera permissions to take photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setSelectedImage(result.assets[0].uri);
+    }
+  };
+
+  const showImagePicker = () => {
+    Alert.alert(
+      'Add Photo',
+      'Choose how to add a photo of the found pet',
+      [
+        { text: 'Camera', onPress: takePhoto },
+        { text: 'Photo Library', onPress: pickImage },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
 
   const validateForm = () => {
     const newErrors = {};
@@ -113,16 +199,20 @@ export default function AddFoundPetReportScreen() {
           email: formData.contactEmail,
           phone: formData.contactPhone
         },
-        imageUri: null,
+        imageUri: selectedImage,
         userId: 'current_user'
       };
 
-      await addPet(petData);
+      if (isEditMode && editPetData) {
+        await updatePet(editPetData.id, petData);
+      } else {
+        await addPet(petData);
+      }
 
       setIsSubmitting(false);
       Alert.alert(
         'Success!',
-        'Your found pet report has been submitted successfully. Thank you for helping reunite pets with their families!',
+        isEditMode ? 'Your found pet report has been updated successfully.' : 'Your found pet report has been submitted successfully. Thank you for helping reunite pets with their families!',
         [
           {
             text: 'OK',
@@ -150,7 +240,7 @@ export default function AddFoundPetReportScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader pageTitle="Report Pet Found" showBackButton={true} />
+      <AppHeader pageTitle={isEditMode ? "Edit Found Pet Report" : "Report Pet Found"} showBackButton={true} />
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <ThemedView style={styles.content}>
@@ -203,6 +293,26 @@ export default function AddFoundPetReportScreen() {
                 buttons={sizeOptions}
                 style={styles.segmentedButtons}
               />
+
+              {/* Photo Section */}
+              <ThemedText type="subtitle" style={[styles.sectionTitle, {marginTop: 24}]}>
+                📸 Pet Photo
+              </ThemedText>
+
+              {selectedImage ? (
+                <View style={styles.imageContainer}>
+                  <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
+                  <TouchableOpacity style={styles.changeImageButton} onPress={showImagePicker}>
+                    <ThemedText style={styles.changeImageText}>Change Photo</ThemedText>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.addImageButton} onPress={showImagePicker}>
+                  <ThemedText style={styles.addImageText}>📸 Add Photo</ThemedText>
+                  <ThemedText style={styles.addImageSubtext}>Help identify this found pet</ThemedText>
+                </TouchableOpacity>
+              )}
+
             </Card.Content>
           </Card>
 
@@ -361,7 +471,7 @@ export default function AddFoundPetReportScreen() {
             style={styles.submitButton}
             contentStyle={styles.submitButtonContent}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Found Pet Report'}
+            {isSubmitting ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update Found Pet Report' : 'Submit Found Pet Report')}
           </Button>
 
           <View style={styles.bottomSpacing} />
@@ -441,5 +551,46 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 40,
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  selectedImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  addImageButton: {
+    borderWidth: 2,
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 24,
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    marginBottom: 16,
+  },
+  addImageText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
+  },
+  addImageSubtext: {
+    fontSize: 12,
+    color: '#999',
+  },
+  changeImageButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  changeImageText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

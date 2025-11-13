@@ -1,7 +1,8 @@
-import { ScrollView, StyleSheet, View, Alert } from 'react-native';
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
-import { addPet } from '@/services/database';
+import { ScrollView, StyleSheet, View, Alert, Image, TouchableOpacity } from 'react-native';
+import { useState, useEffect } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { addPet, updatePet } from '@/services/database';
 import {
   TextInput,
   Button,
@@ -15,6 +16,9 @@ import AppHeader from '@/components/AppHeader';
 
 export default function AddPetReportScreen() {
   const router = useRouter();
+  const { editMode, petData } = useLocalSearchParams();
+  const isEditMode = editMode === 'true';
+  const editPetData = petData ? JSON.parse(petData) : null;
   const [formData, setFormData] = useState({
     name: '',
     species: 'Dog',
@@ -27,6 +31,26 @@ export default function AddPetReportScreen() {
     contactPhone: ''
   });
 
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  // Populate form data in edit mode
+  useEffect(() => {
+    if (isEditMode && editPetData) {
+      setFormData({
+        name: editPetData.name || '',
+        species: editPetData.species || 'Dog',
+        breed: editPetData.breed || '',
+        color: editPetData.color || '',
+        location: editPetData.location || '',
+        description: editPetData.description || '',
+        contactName: editPetData.contact?.name || '',
+        contactEmail: editPetData.contact?.email || '',
+        contactPhone: editPetData.contact?.phone || ''
+      });
+      setSelectedImage(editPetData.imageUri);
+    }
+  }, [isEditMode, editPetData]);
+
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,6 +58,58 @@ export default function AddPetReportScreen() {
     { value: 'Dog', label: '🐕 Dog' },
     { value: 'Cat', label: '🐱 Cat' }
   ];
+
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert('Permission Required', 'You need to allow camera roll permissions to add photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setSelectedImage(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert('Permission Required', 'You need to allow camera permissions to take photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setSelectedImage(result.assets[0].uri);
+    }
+  };
+
+  const showImagePicker = () => {
+    Alert.alert(
+      'Add Photo',
+      'Choose how to add a photo of your pet',
+      [
+        { text: 'Camera', onPress: takePhoto },
+        { text: 'Photo Library', onPress: pickImage },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
 
   const validateForm = () => {
     const newErrors = {};
@@ -102,16 +178,20 @@ export default function AddPetReportScreen() {
           email: formData.contactEmail,
           phone: formData.contactPhone
         },
-        imageUri: null,
+        imageUri: selectedImage,
         userId: 'current_user'
       };
 
-      await addPet(petData);
+      if (isEditMode && editPetData) {
+        await updatePet(editPetData.id, petData);
+      } else {
+        await addPet(petData);
+      }
 
       setIsSubmitting(false);
       Alert.alert(
         'Success!',
-        'Your lost pet report has been submitted successfully.',
+        isEditMode ? 'Your pet report has been updated successfully.' : 'Your lost pet report has been submitted successfully.',
         [
           {
             text: 'OK',
@@ -140,7 +220,7 @@ export default function AddPetReportScreen() {
 
   return (
     <View style={styles.container}>
-      <AppHeader pageTitle="Report Lost Pet" showBackButton={true} />
+      <AppHeader pageTitle={isEditMode ? "Edit Pet Report" : "Report Lost Pet"} showBackButton={true} />
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <ThemedView style={styles.content}>
@@ -199,6 +279,30 @@ export default function AddPetReportScreen() {
               </HelperText>
             </Card.Content>
           </Card>
+
+          {/* Photo Section */}
+          <Card style={styles.sectionCard}>
+            <Card.Content>
+              <ThemedText type="subtitle" style={styles.sectionTitle}>
+                📸 Pet Photo
+              </ThemedText>
+
+              {selectedImage ? (
+                <View style={styles.imageContainer}>
+                  <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
+                  <TouchableOpacity style={styles.changeImageButton} onPress={showImagePicker}>
+                    <ThemedText style={styles.changeImageText}>Change Photo</ThemedText>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.addImageButton} onPress={showImagePicker}>
+                  <ThemedText style={styles.addImageText}>📸 Add Photo</ThemedText>
+                  <ThemedText style={styles.addImageSubtext}>Help others identify your pet</ThemedText>
+                </TouchableOpacity>
+              )}
+            </Card.Content>
+          </Card>
+
 
           {/* Location & Description Section */}
           <Card style={styles.sectionCard}>
@@ -295,7 +399,7 @@ export default function AddPetReportScreen() {
             style={styles.submitButton}
             contentStyle={styles.submitButtonContent}
           >
-            {isSubmitting ? 'Submitting...' : 'Submit Lost Pet Report'}
+            {isSubmitting ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update Pet Report' : 'Submit Lost Pet Report')}
           </Button>
 
           <View style={styles.bottomSpacing} />
@@ -364,5 +468,46 @@ const styles = StyleSheet.create({
   },
   bottomSpacing: {
     height: 40,
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  selectedImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  addImageButton: {
+    borderWidth: 2,
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    padding: 24,
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    marginBottom: 16,
+  },
+  addImageText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 4,
+  },
+  addImageSubtext: {
+    fontSize: 12,
+    color: '#999',
+  },
+  changeImageButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  changeImageText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });
