@@ -19,7 +19,8 @@ const initialState = {
 const DUMMY_USERS = [
   { id: '1', email: 'admin@test.com', name: 'Admin User' },
   { id: '2', email: 'user@test.com', name: 'Test User' },
-  { id: '3', email: 'demo@test.com', name: 'Demo User' },
+  { id: '3', email: 'nasim@prof.com', name: 'Demo User' },
+  { id: '4', email: 'demo@test.com', name: 'Demo User' },
 ];
 
 const DUMMY_TOKEN = 'dummy_jwt_token_12345';
@@ -38,7 +39,10 @@ const dummyAPI = {
     }
 
     // Simple password check (in real app, never do this!)
-    if (password !== 'password') {
+    const validPassword = (user.email === 'nasim@prof.com' && password === '12345678') ||
+                          (user.email !== 'nasim@prof.com' && password === 'password');
+
+    if (!validPassword) {
       throw new Error('Invalid password');
     }
 

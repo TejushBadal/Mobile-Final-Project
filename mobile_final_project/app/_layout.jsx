@@ -65,10 +65,25 @@ function AppContent() {
 
   // Demo login function (pre-fill and submit)
   const handleDemoLogin = useCallback(() => {
-    setEmail('demo@test.com');
-    setPassword('password');
-    dispatch(loginUser({ email: 'demo@test.com', password: 'password' }));
-  }, [dispatch]);
+    // Only accept two specific credential combinations
+    if ((email === 'demo@test.com' && password === 'password') ||
+        (email === 'nasim@prof.com' && password === '12345678')) {
+      setFormErrors({});
+      dispatch(loginUser({ email, password }));
+    } else {
+      // Show errors for wrong credentials
+      if (email !== 'demo@test.com' && email !== 'nasim@prof.com') {
+        setFormErrors({ email: 'Wrong email address' });
+      } else if (password !== 'password' && password !== '12345678') {
+        setFormErrors({ password: 'Wrong password' });
+      } else {
+        setFormErrors({
+          email: 'Wrong email address',
+          password: 'Wrong password'
+        });
+      }
+    }
+  }, [dispatch, email, password]);
 
   // Logout function
   const handleLogout = useCallback(() => {
@@ -105,7 +120,7 @@ function AppContent() {
     return (
       <View style={styles.loginContainer}>
         <View style={styles.loginContent}>
-          <Text style={styles.welcomeTitle}>Welcome to Pet Lost and Found!</Text>
+          <Text style={styles.welcomeTitle}>Welcome to Pet Spotter!</Text>
           <Text style={styles.welcomeSubtitle}>
             Please log in to continue
           </Text>
